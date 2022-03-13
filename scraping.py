@@ -12,6 +12,7 @@ def scrape_all():
     browser = Browser('chrome', **executable_path, headless=True)
 
     news_title, news_paragraph = mars_news(browser)
+    hemispheres = hemisphere_data(browser)
 
     # Run all scraping functions and store results in a dictionary
     data = {
@@ -19,7 +20,8 @@ def scrape_all():
         "news_paragraph": news_paragraph,
         "featured_image": featured_image(browser),
         "facts": mars_facts(),
-        "last_modified": dt.datetime.now()
+        "last_modified": dt.datetime.now(),
+        "hemispheres": hemispheres
     }
 
     # Stop webdriver and return data
@@ -96,6 +98,61 @@ def mars_facts():
 
     # Convert dataframe into HTML format, add bootstrap
     return df.to_html(classes="table table-striped")
+
+def hemisphere_data(browser):
+    # Visit URL.
+    url = 'https://marshemispheres.com/'
+    browser.visit(url)
+
+    # Create a list to hold the images and titles.
+    hemisphere_image_urls = []
+
+    # Get the HTML from the browser and create instance of Beautiful Soup.
+    hemisphere_image_html = browser.html
+    hemisphere_image_soup = soup(hemisphere_image_html, 'html.parser')
+
+    try:
+        # Get all of the hemisphere items.
+        hemisphere_items = hemisphere_image_soup.find_all('div', class_="description")
+
+        # Loop through each hemisphere item.
+        for hemisphere_item in hemisphere_items:
+
+            # Get the item link.
+            hemisphere_item_link = hemisphere_item.find('a', class_="itemLink product-item")
+
+            # Get the title from the link.
+            hemisphere_item_title = hemisphere_item_link.get_text().replace('\n', '')
+
+            # Get the url to navigate to the item details.
+            hemisphere_item_url = hemisphere_item_link['href']
+
+            # Visit the details.
+            browser.visit(f'{url}{hemisphere_item_url}')
+
+            # Get the HTML from the browser and create instance of Beautiful Soup.
+            item_details_html = browser.html
+            details_soup = soup(item_details_html, 'html.parser')
+
+            jpg_image_link = details_soup.find("a", string="Sample")
+            
+            # Get the image url from the details.
+            img_url = jpg_image_link['href']
+
+            # Add the img url and title to the list.
+            hemisphere_image_urls.append(
+                {
+                    'img_url' : f'{url}{img_url}',
+                    'title' : hemisphere_item_title.replace('\n', '')
+                })
+            
+            # Navigate back with the browser.
+            browser.back()
+    except AttributeError:
+        return None
+
+    # Returns the list that holds the dictionary of each image url and title.
+    return hemisphere_image_urls
 
 if __name__ == "__main__":
 
